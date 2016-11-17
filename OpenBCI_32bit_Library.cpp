@@ -321,6 +321,14 @@ boolean OpenBCI_32bit_Library::processChar(char character) {
                 numberOfIncomingSettingsProcessedSampleRate = 1;
                 break;
 
+            case OPENBCI_SD_LOG_ONLY:
+                writeToSerial = false;
+                break;
+
+            case OPENBCI_SD_LOG_STOP:
+                writeToSerial = true;
+                break;
+
             case OPENBCI_CHANNEL_DEFAULT_ALL_SET:  // reset all channel settings to default
                 if(!streaming) {
                     Serial0.println("updating channel settings to default");
@@ -842,6 +850,7 @@ void OpenBCI_32bit_Library::initializeVariables(void) {
     sendTimeSyncUpPacket = false;
     timeSynced = false;
     sampleRate = CONFIG1_SAMPLE_RATE_250;
+    writeToSerial = true;
     isProcessingIncomingSettingsChannel = false;
     isProcessingIncomingSettingsLeadOff = false;
     isProcessingIncomingSettingsSampleRate = false;
@@ -961,6 +970,64 @@ void OpenBCI_32bit_Library::sendChannelDataWithTimeAndAccel(void) {
     }
 
     sampleCounter++;
+}
+
+/**
+ * @description Writes channel, aux, and timestamp data to passed buffer in correct
+ *  stream packet format. Will send a timestamp only if withTime is true, else always
+ *  sends current accelerometer data.
+ */
+void OpenBCI_32bit_Library::writeChannelDataWithTimeAndAccelToBuffer(byte* buffer, boolean withTime) {
+  buffer[0] = 'A';
+  buffer[1] = sampleCounter;
+
+  if (daisyPresent) {
+    if (sampleCounter % 2 != 0) {
+      memcpy(buffer+2, meanBoardDataRaw, 24);
+    } else {
+      memcpy(buffer+2, meanDaisyDataRaw, 24);
+    }
+  } else {
+    memcpy(buffer+2, boardChannelDataRaw, 24);
+  }
+
+  if (withTime) {
+    switch (sampleCounter % 10) {
+      case ACCEL_AXIS_X:
+      case ACCEL_AXIS_Y:
+      case ACCEL_AXIS_Z:
+        uint8_t idx = (sampleCounter % 10) % ACCEL_AXIS_X;
+        buffer[26] = highByte(axisData[idx]);
+        buffer[27] = lowByte(axisData[idx]);
+        axisData[idx] = 0;
+        break;
+      default:
+        buffer[26] = (byte)0x00;
+        buffer[27] = (byte)0x00;
+      }
+
+    uint32_t newTime = millis();
+    buffer[28] = newTime >> 24;
+    buffer[29] = newTime >> 16;
+    buffer[30] = newTime >> 8;
+    buffer[31] = newTime;
+
+    if (sendTimeSyncUpPacket) {
+      sendTimeSyncUpPacket = false;
+      buffer[32] = OPENBCI_EOP_ACCEL_TIME_SET; // 0xC3
+    } else {
+      buffer[32] = OPENBCI_EOP_ACCEL_TIME_SYNCED; // 0xC4
+    }
+  } else {
+    for (int i=0; i<3; ++i) {
+      buffer[26+i] = highByte(axisData[i]);
+      buffer[27+i] = lowByte(axisData[i]);
+      axisData[i] = 0;
+    }
+    buffer[32] = OPENBCI_EOP_STND_ACCEL; // 0xC0
+  }
+
+  sampleCounter++;
 }
 
 /**

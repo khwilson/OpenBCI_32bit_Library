@@ -18,6 +18,8 @@ void setup() {
 }
 
 void loop() {
+  byte* singlePacket[33];
+
   if (board.streaming) {
     if (board.channelDataAvailable) {
       // Read from the ADS(s), store data, set channelDataAvailable flag to false
@@ -32,20 +34,14 @@ void loop() {
         addAccelToSD = true; // Set false after writeDataToSDcard()
       }
 
-      // Verify the SD file is open
-      if(SDfileOpen) {
-        // Write to the SD card, writes aux data
-        writeDataToSDcard(board.sampleCounter);
+      board.writeChannelDataToBuffer(singlePacket, board.timeSynced);
+      if (SDfileOpen) {
+        writeBufferToSD(singlePacket);
       }
-      if (board.timeSynced) {
-        // Send time synced packet with channel data, current board time, and an accel reading
-        //  X axis is sent on sampleCounter % 10 == 7
-        //  Y axis is sent on sampleCounter % 10 == 8
-        //  Z axis is sent on sampleCounter % 10 == 9
-        board.sendChannelDataWithTimeAndAccel();
-      } else {
-        // Send standard packet with channel data
-        board.sendChannelDataWithAccel();
+      if (board.writeToSerial) {
+        for (int i=0; i<33; ++i) {
+          Serial0.write(singlePacket[i]);
+        }
       }
     }
   }

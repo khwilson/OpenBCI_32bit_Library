@@ -88,6 +88,7 @@ public:
     boolean streaming;
     boolean timeSynced;
     boolean sampleRate;
+    boolean writeToSerial;
     boolean sendTimeSyncUpPacket;
     boolean isProcessingIncomingSettingsChannel;
     boolean isProcessingIncomingSettingsLeadOff;

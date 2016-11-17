@@ -421,3 +421,19 @@ void convertToHex(long rawData, int numNibbles, boolean useComma){
     writeCache();
   }
 }// end of byteToHex converter
+
+
+void writeBufferToSD(byte* singlePacket) {
+  int overage = byteCounter + 33 - 512;
+  overage = overage < 0 ? 0 : overage;
+  int firstWriteAmount = 33 - overage;
+  memcpy(pCache + byteCounter, singlePacket, firstWriteAmount);
+  byteCounter += firstWriteAmount;
+  if (byteCounter == 512) {
+    writeCache();
+  }
+  if (overage > 0) {
+    memcpy(pCache, singlePacket + firstWriteAmount, overage);
+    byteCounter += overage;
+  }
+}

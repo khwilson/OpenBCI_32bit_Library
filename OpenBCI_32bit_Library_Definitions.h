@@ -332,7 +332,8 @@
 #define OPENBCI_SD_LOG_FOR_MIN_15    'S'
 #define OPENBCI_SD_LOG_FOR_MIN_30    'F'
 #define OPENBCI_SD_LOG_FOR_SEC_14    'a'
-#define OPENBCI_SD_LOG_STOP        'j'
+#define OPENBCI_SD_LOG_STOP          'j'
+#define OPENBCI_SD_LOG_ONLY          'N'
 
 /** Stream Data Commands */
 #define OPENBCI_STREAM_START  'b'
