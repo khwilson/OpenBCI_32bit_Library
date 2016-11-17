@@ -53,6 +53,7 @@ public:
     void processIncomingBoardMode(char character);
     void processIncomingChannelSettings(char character);
     void processIncomingLeadOffSettings(char character);
+    void processIncomingSampleRateSettings(char character);
 
     void resetChannelSettingsArrayToDefault(byte channelSettingsArray[][OPENBCI_NUMBER_OF_CHANNEL_SETTINGS]);
     void resetLeadOffArrayToDefault(byte leadOffArray[][OPENBCI_NUMBER_OF_LEAD_OFF_SETTINGS]);
@@ -86,9 +87,11 @@ public:
     boolean sniffMode;
     boolean streaming;
     boolean timeSynced;
+    boolean sampleRate;
     boolean sendTimeSyncUpPacket;
     boolean isProcessingIncomingSettingsChannel;
     boolean isProcessingIncomingSettingsLeadOff;
+    boolean isProcessingIncomingSettingsSampleRate;
     boolean settingBoardMode;
     volatile boolean channelDataAvailable;
 

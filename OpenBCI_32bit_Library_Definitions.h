@@ -129,6 +129,18 @@
 #define OFF (0)
 #define ON (1)
 
+// CONFIG1 Register bits (or together to get reg value)
+#define CONFIG1_BASE               (0b10010000) // These are reserved bits
+#define CONFIG1_DAISY_EN           (0b01000000) // Daisy-chain mode
+#define CONFIG1_CLK_EN             (0b00100000) // Enable oscillator clock output
+#define CONFIG1_SAMPLE_RATE_250    (0b00000110)
+#define CONFIG1_SAMPLE_RATE_500    (0b00000101)
+#define CONFIG1_SAMPLE_RATE_1000   (0b00000100)
+#define CONFIG1_SAMPLE_RATE_2000   (0b00000011)
+#define CONFIG1_SAMPLE_RATE_4000   (0b00000010)
+#define CONFIG1_SAMPLE_RATE_8000   (0b00000001)
+#define CONFIG1_SAMPLE_RATE_16000  (0b00000000)
+
 // used for channel settings
 #define ACTIVATE_SHORTED (2)
 #define ACTIVATE (1)
@@ -299,6 +311,16 @@
 #define OPENBCI_CHANNEL_IMPEDANCE_SET                  'z'
 #define OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED    '1'
 #define OPENBCI_CHANNEL_IMPEDANCE_TEST_SIGNAL_APPLIED_NOT '0'
+
+/** SampleRate Commands */
+#define OPENBCI_SAMPLE_RATE_SET       'M'
+#define OPENBCI_SAMPLE_RATE_CMD_250   '1'
+#define OPENBCI_SAMPLE_RATE_CMD_500   '2'
+#define OPENBCI_SAMPLE_RATE_CMD_1000  '3'
+#define OPENBCI_SAMPLE_RATE_CMD_2000  '4'
+#define OPENBCI_SAMPLE_RATE_CMD_4000  '5'
+#define OPENBCI_SAMPLE_RATE_CMD_8000  '6'
+#define OPENBCI_SAMPLE_RATE_CMD_16000 '7'
 
 /** SD card Commands */
 #define OPENBCI_SD_LOG_FOR_HOUR_1    'G'

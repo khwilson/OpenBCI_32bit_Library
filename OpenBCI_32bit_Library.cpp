@@ -153,7 +153,10 @@ void OpenBCI_32bit_Library::writeSerial(char *data, int len) {
  * @return {boolean} - True if processing a message and false otherwise
  */
 boolean OpenBCI_32bit_Library::isProcessingMultibyteMsg(void) {
-    return isProcessingIncomingSettingsChannel || isProcessingIncomingSettingsLeadOff || settingBoardMode;
+    return isProcessingIncomingSettingsChannel ||
+           isProcessingIncomingSettingsLeadOff ||
+           isProcessingIncomingSettingsSampleRate ||
+           settingBoardMode;
 }
 
 /**
@@ -173,6 +176,8 @@ boolean OpenBCI_32bit_Library::processChar(char character) {
             processIncomingChannelSettings(character);
         } else if (isProcessingIncomingSettingsLeadOff) {
             processIncomingLeadOffSettings(character);
+        } else if (isProcessingIncomingSettingsSampleRate) {
+            processIncomingSampleRateSettings(character);
         } else if (settingBoardMode) {
             processIncomingBoardMode(character);
         }
@@ -308,6 +313,12 @@ boolean OpenBCI_32bit_Library::processChar(char character) {
             case OPENBCI_CHANNEL_IMPEDANCE_SET:
                 isProcessingIncomingSettingsLeadOff = true;
                 numberOfIncomingSettingsProcessedLeadOff = 1;
+                break;
+
+            // CHANGE SAMPLE RATE COMMAND
+            case OPENBCI_SAMPLE_RATE_SET: // This is the first byte that tells us to expect more commands
+                isProcessingIncomingSettingsSampleRate = true;
+                numberOfIncomingSettingsProcessedSampleRate = 1;
                 break;
 
             case OPENBCI_CHANNEL_DEFAULT_ALL_SET:  // reset all channel settings to default
@@ -747,6 +758,48 @@ void OpenBCI_32bit_Library::processIncomingLeadOffSettings(char character) {
 }
 
 
+/**
+ * @description When a 'M' is found on the serial port, we jump to this function
+ *                  where we continue to read from the serial port and read the
+ *                  remaining byte.
+ * @param `character` - {char} - The character you want to process...
+ */
+void OpenBCI_32bit_Library::processIncomingLeadOffSettings(char character) {
+    if (streaming) {
+        // Not sure exactly how to say "BAD!" but for now we'll just ignore
+        numberOfIncomingSettingsProcessedSampleRate = 0;
+        isProcessingIncomingSettingsSampleRate = false;
+        return;
+    }
+
+    switch (character) {
+        case OPENBCI_SAMPLE_RATE_CMD_250:
+            sampleRate = CONFIG1_SAMPLE_RATE_250; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_500:
+            sampleRate = CONFIG1_SAMPLE_RATE_500; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_1000:
+            sampleRate = CONFIG1_SAMPLE_RATE_1000; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_2000:
+            sampleRate = CONFIG1_SAMPLE_RATE_2000; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_4000:
+            sampleRate = CONFIG1_SAMPLE_RATE_4000; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_8000:
+            sampleRate = CONFIG1_SAMPLE_RATE_8000; initialize_ads(); break;
+        case OPENBCI_SAMPLE_RATE_CMD_16000:
+            sampleRate = CONFIG1_SAMPLE_RATE_16000; initialize_ads(); break;
+        default:
+            // Invalid command; just abort
+            if (!streaming) {
+                Serial0.print("Invalid character after "); Serial0.println(OPENBCI_SAMPLE_RATE_SET);
+                sendEOT();
+            }
+    }
+
+    // In any case, there's only one character as part of this command anyway
+    numberOfIncomingSettingsProcessedSampleRate = 0;
+    isProcessingIncomingSettingsSampleRate = false;
+}
+
 boolean OpenBCI_32bit_Library::isValidBoardType(char c) {
     switch (c) {
         case OPENBCI_BOARD_MODE_DEFAULT:
@@ -764,10 +817,10 @@ boolean OpenBCI_32bit_Library::isValidBoardType(char c) {
 // <<<<<<<<<<<<<<<<<<<<<<<<<  BOARD WIDE FUNCTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void OpenBCI_32bit_Library::initialize(){
-    pinMode(SD_SS,OUTPUT); digitalWrite(SD_SS,HIGH);  // de-select SDcard if present
-    pinMode(BOARD_ADS, OUTPUT); digitalWrite(BOARD_ADS,HIGH);
-    pinMode(DAISY_ADS, OUTPUT); digitalWrite(DAISY_ADS,HIGH);
-    pinMode(LIS3DH_SS,OUTPUT); digitalWrite(LIS3DH_SS,HIGH);
+    pinMode(SD_SS, OUTPUT); digitalWrite(SD_SS, HIGH);  // de-select SDcard if present
+    pinMode(BOARD_ADS, OUTPUT); digitalWrite(BOARD_ADS, HIGH);
+    pinMode(DAISY_ADS, OUTPUT); digitalWrite(DAISY_ADS, HIGH);
+    pinMode(LIS3DH_SS, OUTPUT); digitalWrite(LIS3DH_SS, HIGH);
     spi.begin();
     spi.setSpeed(4000000);  // use 4MHz for ADS and LIS3DH
     spi.setMode(DSPI_MODE0);  // default to SD card mode!
@@ -788,11 +841,14 @@ void OpenBCI_32bit_Library::initializeVariables(void) {
     streaming = false;
     sendTimeSyncUpPacket = false;
     timeSynced = false;
+    sampleRate = CONFIG1_SAMPLE_RATE_250;
     isProcessingIncomingSettingsChannel = false;
     isProcessingIncomingSettingsLeadOff = false;
+    isProcessingIncomingSettingsSampleRate = false;
     settingBoardMode = false;
     numberOfIncomingSettingsProcessedChannel = 0;
     numberOfIncomingSettingsProcessedLeadOff = 0;
+    numberOfIncomingSettingsProcessedSampleRate = 0;
     currentChannelSetting = 0;
     timeOffset = 0;
     timeSetCharArrived = 0;
@@ -1080,15 +1136,23 @@ void OpenBCI_32bit_Library::initialize_ads(){
     delay(40);
     resetADS(BOARD_ADS); // reset the on-board ADS registers, and stop DataContinuousMode
     delay(10);
-    WREG(CONFIG1,0xB6,BOARD_ADS); // tell on-board ADS to output its clk, set the data rate to 250SPS
+
+    WREG(CONFIG1,
+         CONFIG1_BASE | CONFIG1_CLK_EN | sampleRate,
+         BOARD_ADS); // tell on-board ADS to output its clk, set the data rate
     delay(40);
     resetADS(DAISY_ADS); // software reset daisy module if present
     delay(10);
     daisyPresent = smellDaisy(); // check to see if daisy module is present
     if(!daisyPresent){
-      WREG(CONFIG1,0x96,BOARD_ADS); // turn off clk output if no daisy present
+      WREG(CONFIG1,
+           CONFIG1_BASE | sampleRate,
+           BOARD_ADS); // turn off clk output if no daisy present
       numChannels = 8;    // expect up to 8 ADS channels
     }else{
+      WREG(CONFIG1,
+           CONFIG1_BASE | sampleRate,
+           DAISY_ADS); // Se thte daisy's sample rate
       numChannels = 16;   // expect up to 16 ADS channels
     }
 
