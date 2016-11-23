@@ -63,6 +63,8 @@ public:
     void sendChannelDataWithTimeAndAccel(void);
     void sendChannelDataWithTimeAndRawAux(void);
 
+    void writeChannelDataToBuffer(byte* buffer, boolean withTime);
+
     void streamSafeChannelDeactivate(byte channelNumber);
     void streamSafeChannelActivate(byte channelNumber);
     void streamSafeChannelSettingsForChannel(byte channelNumber, byte powerDown, byte gain, byte inputType, byte bias, byte srb2, byte srb1);

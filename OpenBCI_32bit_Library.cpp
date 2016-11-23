@@ -318,7 +318,6 @@ boolean OpenBCI_32bit_Library::processChar(char character) {
             // CHANGE SAMPLE RATE COMMAND
             case OPENBCI_SAMPLE_RATE_SET: // This is the first byte that tells us to expect more commands
                 isProcessingIncomingSettingsSampleRate = true;
-                numberOfIncomingSettingsProcessedSampleRate = 1;
                 break;
 
             case OPENBCI_SD_LOG_ONLY:
@@ -772,10 +771,9 @@ void OpenBCI_32bit_Library::processIncomingLeadOffSettings(char character) {
  *                  remaining byte.
  * @param `character` - {char} - The character you want to process...
  */
-void OpenBCI_32bit_Library::processIncomingLeadOffSettings(char character) {
+void OpenBCI_32bit_Library::processIncomingSampleRateSettings(char character) {
     if (streaming) {
         // Not sure exactly how to say "BAD!" but for now we'll just ignore
-        numberOfIncomingSettingsProcessedSampleRate = 0;
         isProcessingIncomingSettingsSampleRate = false;
         return;
     }
@@ -804,7 +802,6 @@ void OpenBCI_32bit_Library::processIncomingLeadOffSettings(char character) {
     }
 
     // In any case, there's only one character as part of this command anyway
-    numberOfIncomingSettingsProcessedSampleRate = 0;
     isProcessingIncomingSettingsSampleRate = false;
 }
 
@@ -857,7 +854,6 @@ void OpenBCI_32bit_Library::initializeVariables(void) {
     settingBoardMode = false;
     numberOfIncomingSettingsProcessedChannel = 0;
     numberOfIncomingSettingsProcessedLeadOff = 0;
-    numberOfIncomingSettingsProcessedSampleRate = 0;
     currentChannelSetting = 0;
     timeOffset = 0;
     timeSetCharArrived = 0;
@@ -977,7 +973,7 @@ void OpenBCI_32bit_Library::sendChannelDataWithTimeAndAccel(void) {
  *  stream packet format. Will send a timestamp only if withTime is true, else always
  *  sends current accelerometer data.
  */
-void OpenBCI_32bit_Library::writeChannelDataWithTimeAndAccelToBuffer(byte* buffer, boolean withTime) {
+void OpenBCI_32bit_Library::writeChannelDataToBuffer(byte* buffer, boolean withTime) {
   buffer[0] = 'A';
   buffer[1] = sampleCounter;
 
@@ -992,11 +988,11 @@ void OpenBCI_32bit_Library::writeChannelDataWithTimeAndAccelToBuffer(byte* buffe
   }
 
   if (withTime) {
+    uint8_t idx = (sampleCounter % 10) % ACCEL_AXIS_X;
     switch (sampleCounter % 10) {
       case ACCEL_AXIS_X:
       case ACCEL_AXIS_Y:
       case ACCEL_AXIS_Z:
-        uint8_t idx = (sampleCounter % 10) % ACCEL_AXIS_X;
         buffer[26] = highByte(axisData[idx]);
         buffer[27] = lowByte(axisData[idx]);
         axisData[idx] = 0;
